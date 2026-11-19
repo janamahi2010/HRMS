@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.env
+backend/staticfiles/
+backend/media/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local data / private notes (never commit)
+backend/backups/
+*.sqlite3
+Task.mahi

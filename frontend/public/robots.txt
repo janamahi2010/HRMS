@@ -1,0 +1,6 @@
+# Private HR workspace: only the public sign-in / sign-up pages may be indexed.
+User-agent: *
+Allow: /login
+Allow: /signup
+Allow: /$
+Disallow: /

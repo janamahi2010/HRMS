@@ -1,0 +1,133 @@
+# Render Blueprint: Postgres + Django API + React static site + 2 cron jobs.
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+# After the first deploy, fill the `sync: false` values (Render prompts for them).
+
+envVarGroups:
+  - name: hrms-shared
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: TZ
+        value: Asia/Kolkata
+      - key: FRONTEND_URL          # e.g. https://hrms-web.onrender.com
+        sync: false
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST            # smtp.resend.com | smtp.gmail.com | ...
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL    # e.g. "Acme HR <hr@acme.com>"
+        sync: false
+      - key: CLOUDINARY_URL        # cloudinary://key:secret@cloud (company logos)
+        sync: false
+
+databases:
+  - name: hrms-db
+    databaseName: hrms
+    user: hrms
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: hrms-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile - --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health/
+    envVars:
+      - fromGroup: hrms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hrms-db
+          property: connectionString
+      - key: ALLOWED_HOSTS         # RENDER_EXTERNAL_HOSTNAME is added automatically
+        value: localhost
+
+  - type: web
+    name: hrms-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_URL          # e.g. https://hrms-api.onrender.com/api
+        sync: false
+    routes:
+      - type: rewrite              # SPA: every path serves index.html
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+  # 23:55 IST = 18:25 UTC. --backfill 2 re-closes the previous two days in case a run was missed (idempotent).
+  - type: cron
+    name: hrms-close-attendance-day
+    runtime: python
+    rootDir: backend
+    schedule: "25 18 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py close_attendance_day --backfill 2
+    envVars:
+      - fromGroup: hrms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hrms-db
+          property: connectionString
+
+  # Every 30 min from 17:30 to 23:30 IST (12:00-18:00 UTC): "You haven't checked out yet" (once per person per day).
+  - type: cron
+    name: hrms-checkout-reminders
+    runtime: python
+    rootDir: backend
+    schedule: "*/30 12-18 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py send_checkout_reminders
+    envVars:
+      - fromGroup: hrms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hrms-db
+          property: connectionString
+
+  # 00:05 IST on 1 January (= 18:35 UTC on 31 Dec), when "today" in IST is already the new year.
+  # Idempotent; mid-year joiners are credited pro-rata when they're created.
+  - type: cron
+    name: hrms-credit-leave-balances
+    runtime: python
+    rootDir: backend
+    schedule: "35 18 31 12 *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py credit_leave_balances
+    envVars:
+      - fromGroup: hrms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hrms-db
+          property: connectionString

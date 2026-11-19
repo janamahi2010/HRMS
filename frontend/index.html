@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="HRMS: location-based attendance and leave management" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
+    <title>HRMS</title>
+    <script>
+      // Apply theme before first paint to avoid a light/dark flash.
+      ;(function () {
+        try {
+          var t = localStorage.getItem('hrms-theme') || 'system'
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
+    <style>
+      /* Boot splash: paints instantly, replaced when React mounts. */
+      html,body{margin:0;background:#f7f8fa}
+      html.dark,html.dark body{background:#0b0d12}
+      .boot{min-height:100vh;min-height:100dvh;display:grid;place-items:center}
+      .boot svg{animation:boot 1.1s ease-in-out infinite alternate}
+      @keyframes boot{from{opacity:.55;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+      @media (prefers-reduced-motion:reduce){.boot svg{animation:none}}
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="boot" role="status" aria-label="Loading HRMS"><svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><rect width="44" height="44" rx="12" fill="#4f46e5"/><path d="M15 13v18M29 13v18M15 22h14" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

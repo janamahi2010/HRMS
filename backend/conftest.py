@@ -17,10 +17,13 @@ WEDNESDAY = date(2026, 11, 11)
 
 
 @pytest.fixture(autouse=True)
-def _fast_hasher(settings):
+def _fast_hasher(settings, tmp_path_factory):
     settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     settings.EMAIL_ASYNC = False
+    # Never upload to the real Supabase bucket from tests: use a temporary folder.
+    settings.STORAGES = {**settings.STORAGES, "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"}}
+    settings.MEDIA_ROOT = tmp_path_factory.mktemp("media")
     settings.FRONTEND_URL = "https://app.test"
 
 

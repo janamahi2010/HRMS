@@ -38,6 +38,15 @@ BACKEND_URL = env(
 ).rstrip("/")
 CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
 
+# Uploaded images (logo, news photos, birthday poster) go to a Supabase Storage bucket when these are set.
+# Supabase -> Storage -> Settings -> S3 connection. The bucket must be Public (images are shown in the app).
+SUPABASE_S3_ACCESS_KEY_ID = env("SUPABASE_S3_ACCESS_KEY_ID", default="")
+SUPABASE_S3_SECRET_ACCESS_KEY = env("SUPABASE_S3_SECRET_ACCESS_KEY", default="")
+SUPABASE_S3_ENDPOINT = env("SUPABASE_S3_ENDPOINT", default="").rstrip("/")  # https://<project>.supabase.co/storage/v1/s3
+SUPABASE_S3_REGION = env("SUPABASE_S3_REGION", default="ap-northeast-1")
+SUPABASE_S3_BUCKET = env("SUPABASE_S3_BUCKET", default="")
+USE_SUPABASE_STORAGE = bool(SUPABASE_S3_ACCESS_KEY_ID and SUPABASE_S3_SECRET_ACCESS_KEY and SUPABASE_S3_ENDPOINT and SUPABASE_S3_BUCKET)
+
 # ---------------------------------------------------------------------------
 # Applications
 # ---------------------------------------------------------------------------
@@ -150,14 +159,32 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+if USE_SUPABASE_STORAGE:
+    _DEFAULT_STORAGE = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": SUPABASE_S3_ACCESS_KEY_ID,
+            "secret_key": SUPABASE_S3_SECRET_ACCESS_KEY,
+            "bucket_name": SUPABASE_S3_BUCKET,
+            "endpoint_url": SUPABASE_S3_ENDPOINT,
+            "region_name": SUPABASE_S3_REGION,
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "file_overwrite": False,
+            "querystring_auth": False,  # public bucket: plain, permanent links
+            # https://<project>.supabase.co/storage/v1/object/public/<bucket>/<file>
+            "custom_domain": SUPABASE_S3_ENDPOINT.split("://", 1)[-1].replace("/storage/v1/s3", f"/storage/v1/object/public/{SUPABASE_S3_BUCKET}"),
+            "object_parameters": {"CacheControl": "public, max-age=31536000"},
+        },
+    }
+elif CLOUDINARY_URL:
+    _DEFAULT_STORAGE = {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"}
+else:
+    _DEFAULT_STORAGE = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
 STORAGES = {
-    "default": {
-        "BACKEND": (
-            "cloudinary_storage.storage.MediaCloudinaryStorage"
-            if CLOUDINARY_URL
-            else "django.core.files.storage.FileSystemStorage"
-        )
-    },
+    "default": _DEFAULT_STORAGE,
     "staticfiles": {
         "BACKEND": (
             "whitenoise.storage.CompressedManifestStaticFilesStorage"

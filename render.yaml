@@ -1,4 +1,4 @@
-# Render Blueprint: Postgres + Django API + React static site + 2 cron jobs.
+# Render Blueprint: Django API + React static site + 3 cron jobs. Database: Supabase (DATABASE_URL).
 # Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
 # After the first deploy, fill the `sync: false` values (Render prompts for them).
 
@@ -27,15 +27,10 @@ envVarGroups:
         sync: false
       - key: DEFAULT_FROM_EMAIL    # e.g. "Acme HR <hr@acme.com>"
         sync: false
-      - key: CLOUDINARY_URL        # cloudinary://key:secret@cloud (company logos)
+      - key: CLOUDINARY_URL        # cloudinary://key:secret@cloud (logos, news photos, birthday poster)
         sync: false
-
-databases:
-  - name: hrms-db
-    databaseName: hrms
-    user: hrms
-    plan: free
-    postgresMajorVersion: "16"
+      - key: DATABASE_URL          # Supabase -> Connect -> Session pooler link (port 5432)
+        sync: false
 
 services:
   - type: web
@@ -48,10 +43,6 @@ services:
     healthCheckPath: /api/health/
     envVars:
       - fromGroup: hrms-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hrms-db
-          property: connectionString
       - key: ALLOWED_HOSTS         # RENDER_EXTERNAL_HOSTNAME is added automatically
         value: localhost
 
@@ -96,10 +87,6 @@ services:
     startCommand: python manage.py close_attendance_day --backfill 2
     envVars:
       - fromGroup: hrms-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hrms-db
-          property: connectionString
 
   # Every 30 min from 17:30 to 23:30 IST (12:00-18:00 UTC): "You haven't checked out yet" (once per person per day).
   - type: cron
@@ -111,10 +98,6 @@ services:
     startCommand: python manage.py send_checkout_reminders
     envVars:
       - fromGroup: hrms-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hrms-db
-          property: connectionString
 
   # 00:05 IST on 1 January (= 18:35 UTC on 31 Dec), when "today" in IST is already the new year.
   # Idempotent; mid-year joiners are credited pro-rata when they're created.
@@ -127,7 +110,3 @@ services:
     startCommand: python manage.py credit_leave_balances
     envVars:
       - fromGroup: hrms-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: hrms-db
-          property: connectionString

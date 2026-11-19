@@ -5,6 +5,7 @@ See .env.example for the full list.
 """
 
 from datetime import timedelta
+import os
 from pathlib import Path
 
 import dj_database_url
@@ -103,12 +104,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------
+_DB_URL = os.environ.get("DATABASE_URL") or env("DATABASE_URL", default="postgres://postgres:postgres@localhost:5432/hrms")
+_LOCAL_DB = any(h in _DB_URL for h in ("@localhost", "@127.0.0.1", "@db:"))
 DATABASES = {
-    "default": dj_database_url.config(
-        env="DATABASE_URL",
-        default="postgres://postgres:postgres@localhost:5432/hrms",
+    "default": dj_database_url.parse(
+        _DB_URL,
         conn_max_age=600,
         conn_health_checks=True,
+        ssl_require=not _LOCAL_DB,  # hosted Postgres (Supabase) needs SSL
     )
 }
 

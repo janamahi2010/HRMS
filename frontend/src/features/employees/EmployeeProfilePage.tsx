@@ -167,7 +167,7 @@ function ProfileHeader({ d }: { d: PersonOverview }) {
       <div className="-mt-10 px-5 pb-5 sm:-mt-12 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex min-w-0 items-end gap-4">
-            <Avatar name={p.name} seed={p.id} size="xl" className="size-20 shrink-0 text-2xl ring-4 ring-card" />
+            <Avatar name={p.name} seed={p.id} src={p.avatar_url} size="xl" className="size-20 shrink-0 text-2xl ring-4 ring-card" />
             <div className="min-w-0 pb-1">
               <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{p.name}</h1>
               <p className="truncate text-sm text-muted-foreground">

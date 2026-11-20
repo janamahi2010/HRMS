@@ -76,7 +76,7 @@ export function BottomNav() {
             <SheetTitle className="sr-only">More</SheetTitle>
             <SheetDescription className="sr-only">Additional navigation and settings</SheetDescription>
             <button onClick={() => go('/profile')} onTouchStart={() => void pages.profile.preload()} className="flex items-center gap-3 rounded-xl text-left">
-              <Avatar name={user.name} seed={user.id} size="lg" />
+              <Avatar name={user.name} seed={user.id} src={user.avatar_url} size="lg" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{user.name}</p>
                 <p className="truncate text-sm text-muted-foreground">{user.email}</p>

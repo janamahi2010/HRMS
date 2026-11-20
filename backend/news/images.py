@@ -6,10 +6,21 @@ import uuid
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image, ImageOps
 
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_SIDE = 2000
-ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp"}  # no SVG / GIF
 Image.MAX_IMAGE_PIXELS = 60_000_000  # refuse decompression bombs early
+
+
+def clean_avatar(f, side: int = 400) -> InMemoryUploadedFile:
+    """Square, centre-cropped profile photo (EXIF/GPS stripped), ~30-60 KB."""
+    img = Image.open(f)
+    img.load()
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    img = ImageOps.fit(img, (side, side), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85, optimize=True, progressive=True)
+    size = buf.tell()
+    buf.seek(0)
+    return InMemoryUploadedFile(buf, "avatar", f"{uuid.uuid4().hex}.jpg", "image/jpeg", size, None)
 
 
 def clean_photo(f) -> tuple[InMemoryUploadedFile, int, int]:

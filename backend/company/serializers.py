@@ -6,8 +6,6 @@ from accounts.serializers import CompanyMiniSerializer
 
 from .models import Company, CompanySettings, Holiday, OfficeLocation
 
-MAX_LOGO_BYTES = 2 * 1024 * 1024
-ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/webp"}  # no SVG: script-injection risk
 
 
 class CompanySerializer(CompanyMiniSerializer):
@@ -29,28 +27,25 @@ class CompanySerializer(CompanyMiniSerializer):
         return value
 
 
-MAX_POSTER_BYTES = 5 * 1024 * 1024
 
 
 class PosterUploadSerializer(serializers.Serializer):
-    poster = serializers.ImageField()
+    poster = serializers.FileField()  # checked by core.uploads.check_image (clear messages)
 
     def validate_poster(self, f):
-        if f.size > MAX_POSTER_BYTES:
-            raise serializers.ValidationError("Poster must be 5 MB or smaller.")
-        if getattr(f, "content_type", None) not in ALLOWED_LOGO_TYPES:
-            raise serializers.ValidationError("Use a PNG, JPG or WebP image.")
+        from core.uploads import check_image
+
+        check_image(f, "The poster")
         return f
 
 
 class LogoUploadSerializer(serializers.Serializer):
-    logo = serializers.ImageField()
+    logo = serializers.FileField()  # checked by core.uploads.check_image (clear messages)
 
     def validate_logo(self, f):
-        if f.size > MAX_LOGO_BYTES:
-            raise serializers.ValidationError("Logo must be 2 MB or smaller.")
-        if getattr(f, "content_type", None) not in ALLOWED_LOGO_TYPES:
-            raise serializers.ValidationError("Use a PNG, JPG or WebP image.")
+        from core.uploads import check_image
+
+        check_image(f, "The logo")
         return f
 
 

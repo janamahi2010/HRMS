@@ -11,6 +11,14 @@ export interface NewsImage {
   height: number
 }
 
+export interface NewsAttachment {
+  id: number
+  name: string
+  size: number
+  content_type: string
+  url: string
+}
+
 export interface NewsPost {
   id: number
   title: string
@@ -19,8 +27,9 @@ export interface NewsPost {
   category_label: string
   event_date: string | null
   is_pinned: boolean
-  author: { id: number; name: string; designation: string } | null
+  author: { id: number; name: string; designation: string; avatar_url?: string | null } | null
   images: NewsImage[]
+  attachments: NewsAttachment[]
   created_at: string
   updated_at: string
 }
@@ -34,6 +43,7 @@ export const NEWS_CATEGORIES: { value: NewsCategory; label: string }[] = [
 ]
 
 export const MAX_PHOTOS = 6
+export const MAX_DOCS = 3
 
 export const newsKeys = {
   all: ['news'] as const,
@@ -60,6 +70,8 @@ export interface NewsInput {
   is_pinned: boolean
   new_images: File[]
   remove_image_ids: number[]
+  new_files: File[]
+  remove_file_ids: number[]
   /** Create only: also email everyone. */
   email_everyone: boolean
 }
@@ -74,6 +86,8 @@ function toForm(v: Partial<NewsInput>) {
   if (v.email_everyone) fd.append('email_everyone', 'true')
   for (const f of v.new_images ?? []) fd.append('new_images', f)
   for (const id of v.remove_image_ids ?? []) fd.append('remove_image_ids', String(id))
+  for (const f of v.new_files ?? []) fd.append('new_files', f)
+  for (const id of v.remove_file_ids ?? []) fd.append('remove_file_ids', String(id))
   return fd
 }
 
@@ -120,21 +134,5 @@ export function useMarkNewsSeen() {
   })
 }
 
-/** Shrink big phone photos before upload (faster on mobile data). The server re-encodes anyway. */
-export async function shrinkPhoto(file: File, maxSide = 2000): Promise<File> {
-  if (file.size < 1.5 * 1024 * 1024 || typeof createImageBitmap !== 'function') return file
-  try {
-    const bmp = await createImageBitmap(file)
-    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(bmp.width * scale)
-    canvas.height = Math.round(bmp.height * scale)
-    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height)
-    bmp.close()
-    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.86))
-    if (!blob || blob.size >= file.size) return file
-    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
-  } catch {
-    return file
-  }
-}
+/** Kept for older imports: the shared helper lives in lib/upload. */
+export { shrinkPhoto } from '@/lib/upload'

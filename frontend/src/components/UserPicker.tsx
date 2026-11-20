@@ -121,7 +121,7 @@ export function UserPicker(props: SingleProps | MultiProps) {
               props.value.length ? (
                 props.value.map((u) => (
                   <span key={u.id} className="inline-flex items-center gap-1 rounded-md bg-primary-soft py-0.5 pl-1 pr-1 text-xs font-medium text-primary-soft-foreground">
-                    <Avatar name={u.name} seed={u.id} size="xs" />
+                    <Avatar name={u.name} seed={u.id} src={u.avatar_url} size="xs" />
                     {u.name}
                     <span
                       title={`Remove ${u.name}`}
@@ -141,7 +141,7 @@ export function UserPicker(props: SingleProps | MultiProps) {
               )
             ) : props.value ? (
               <span className="flex min-w-0 items-center gap-2">
-                <Avatar name={props.value.name} seed={props.value.id} size="xs" />
+                <Avatar name={props.value.name} seed={props.value.id} src={props.value.avatar_url} size="xs" />
                 <span className="truncate">{props.value.name}</span>
               </span>
             ) : (
@@ -215,7 +215,7 @@ export function UserPicker(props: SingleProps | MultiProps) {
                     i === active && 'bg-accent',
                   )}
                 >
-                  <Avatar name={u.name} seed={u.id} size="sm" />
+                  <Avatar name={u.name} seed={u.id} src={u.avatar_url} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{u.name}</span>
                     <span className="block truncate text-xs text-muted-foreground">{u.designation || u.email}</span>

@@ -25,13 +25,13 @@ export function UserMenu() {
         aria-label="Open user menu"
         onPointerEnter={() => void pages.profile.preload()}
       >
-        <Avatar name={user.name} seed={user.id} size="sm" />
+        <Avatar name={user.name} seed={user.id} src={user.avatar_url} size="sm" />
         <span className="hidden max-w-[10rem] truncate text-sm font-medium lg:block">{user.name}</span>
         <ChevronDown className="hidden size-4 text-muted-foreground lg:block" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center gap-3">
-          <Avatar name={user.name} seed={user.id} size="md" />
+          <Avatar name={user.name} seed={user.id} src={user.avatar_url} size="md" />
           <div className="min-w-0">
             <p className="truncate font-medium">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>

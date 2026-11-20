@@ -8,7 +8,7 @@ import { ResponsiveDialog } from '@/components/ui/responsive-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fmtDate, fmtRelative } from '@/lib/date'
 import { useNews, type NewsPost } from './api'
-import { CATEGORY_META, CategoryBadge, isNew, PhotoGrid, PostBody, PostMeta } from './NewsPostCard'
+import { Attachments, CATEGORY_META, CategoryBadge, isNew, PhotoGrid, PostBody, PostMeta } from './NewsPostCard'
 import { useNewsAdmin } from './useNewsAdmin'
 
 /** Home: the latest company news (pinned first). Hidden for non-admins when there's nothing posted. */
@@ -139,6 +139,7 @@ export function NewsHomeCard() {
             <PostMeta post={open} />
             <PostBody text={open.body} />
             <PhotoGrid images={open.images} title={open.title} />
+            <Attachments files={open.attachments} />
             <Link to={`/news#post-${open.id}`} className="inline-block text-sm font-medium text-primary hover:underline">
               Open in news feed
             </Link>

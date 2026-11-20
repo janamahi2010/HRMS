@@ -66,6 +66,8 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     internship_end = models.DateField(null=True, blank=True)
     show_birthday = models.BooleanField(default=True, help_text="Celebrate my birthday on everyone's Home page.")
     # Set when an admin chose the password: the person must pick their own at next sign-in.
+    # Profile photo (square, re-encoded on upload). Shown instead of initials.
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     # Can check in / out from anywhere (work from home, field work). Location is still recorded when shared.
     remote_allowed = models.BooleanField(default=False)
     # Company news: posts after this time count as unread (null -> since they joined the app).

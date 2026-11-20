@@ -14,6 +14,7 @@ export interface PersonOverview {
   profile: {
     id: number
     employee_code: string
+    avatar_url?: string | null
     name: string
     email: string
     phone: string

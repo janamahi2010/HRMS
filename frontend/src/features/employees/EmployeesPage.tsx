@@ -134,7 +134,7 @@ export default function EmployeesPage() {
       skeletonWidth: 'w-40',
       cell: (e) => (
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={e.name} seed={e.id} />
+          <Avatar name={e.name} seed={e.id} src={e.avatar_url} />
           <div className="min-w-0">
             <p className="truncate font-medium">
               {e.name}
@@ -246,7 +246,7 @@ export default function EmployeesPage() {
             onRowIntent={warm}
             mobileCard={(e) => (
               <Card className="flex items-center gap-3 p-4" onClick={() => openProfile(e)} onPointerEnter={() => warm(e)}>
-                <Avatar name={e.name} seed={e.id} size="lg" />
+                <Avatar name={e.name} seed={e.id} src={e.avatar_url} size="lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-medium">{e.name}</p>

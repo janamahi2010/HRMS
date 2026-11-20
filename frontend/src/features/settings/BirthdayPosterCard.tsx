@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { BirthdayPoster } from '@/features/celebrations/BirthdayPoster'
 import { getErrorMessage } from '@/lib/errors'
+import { prepareImage } from '@/lib/upload'
 import { useCompany, useRemovePoster, useUploadPoster } from './api'
 
-const MAX_BYTES = 5 * 1024 * 1024
 
 /** Admin: choose the artwork shown on birthday cards (or keep the built-in design). */
 export function BirthdayPosterCard() {
@@ -18,11 +18,11 @@ export function BirthdayPosterCard() {
   const fileRef = useRef<HTMLInputElement>(null)
   const url = company.data?.birthday_poster_url ?? null
 
-  const onFile = (file?: File) => {
-    if (!file) return
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return toast.error('Use a PNG, JPG or WebP image.')
-    if (file.size > MAX_BYTES) return toast.error('Poster must be 5 MB or smaller.')
-    upload.mutate(file, {
+  const onFile = async (picked?: File) => {
+    if (!picked) return
+    const r = await prepareImage(picked, 'The poster', 2400)
+    if ('error' in r) return toast.error(r.error)
+    upload.mutate(r.file, {
       onSuccess: () => toast.success('Birthday poster updated'),
       onError: (err) => toast.error(getErrorMessage(err)),
     })
@@ -82,7 +82,7 @@ export function BirthdayPosterCard() {
             </Button>
           )}
         </div>
-        <p className="text-[13px] text-muted-foreground">Wide image works best (about 3:1, e.g. 1500 × 500). PNG, JPG or WebP, up to 5 MB.</p>
+        <p className="text-[13px] text-muted-foreground">Wide image works best (about 3:1, e.g. 1500 × 500). PNG, JPG or WebP, up to 3 MB (bigger photos are shrunk automatically).</p>
       </CardContent>
     </Card>
   )

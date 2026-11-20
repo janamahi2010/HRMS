@@ -22,10 +22,19 @@ class CompanyMiniSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request and url.startswith("/") else url
 
 
-class UserMiniSerializer(serializers.ModelSerializer):
+class AvatarUrlMixin(serializers.Serializer):
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj) -> str | None:
+        from core.uploads import media_url
+
+        return media_url(getattr(obj, "avatar", None), self.context.get("request"))
+
+
+class UserMiniSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "name", "email", "designation")
+        fields = ("id", "name", "email", "designation", "avatar_url")
 
 
 class LocationMiniSerializer(serializers.Serializer):
@@ -33,7 +42,7 @@ class LocationMiniSerializer(serializers.Serializer):
     name = serializers.CharField()
 
 
-class MeSerializer(serializers.ModelSerializer):
+class MeSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     company = CompanyMiniSerializer(read_only=True)
     manager = UserMiniSerializer(read_only=True)
     office_location = LocationMiniSerializer(read_only=True)
@@ -52,6 +61,7 @@ class MeSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "show_birthday",
             "remote_allowed",
+            "avatar_url",
             "internship",
             "must_change_password",
             "company",

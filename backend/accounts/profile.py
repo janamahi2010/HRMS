@@ -99,6 +99,7 @@ def profile_overview(viewer: User, person: User) -> dict:
         "profile": {
             "id": person.id,
             "employee_code": person.employee_code,
+            "avatar_url": __import__("core.uploads", fromlist=["media_url"]).media_url(person.avatar),
             "name": person.name,
             "email": person.email,
             "phone": person.phone,

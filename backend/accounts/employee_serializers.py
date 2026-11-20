@@ -6,10 +6,10 @@ from company.models import OfficeLocation
 from core.constants import Role
 
 from .models import User
-from .serializers import LocationMiniSerializer, UserMiniSerializer
+from .serializers import AvatarUrlMixin, LocationMiniSerializer, UserMiniSerializer
 
 
-class EmployeeSerializer(serializers.ModelSerializer):
+class EmployeeSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     manager = UserMiniSerializer(read_only=True)
     office_location = LocationMiniSerializer(read_only=True)
     manager_id = serializers.PrimaryKeyRelatedField(
@@ -56,6 +56,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "internship_end",
             "internship",
             "remote_allowed",
+            "avatar_url",
             "manager",
             "manager_id",
             "office_location",
@@ -193,10 +194,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class UserLookupSerializer(serializers.ModelSerializer):
+class UserLookupSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "name", "email", "designation", "role")
+        fields = ("id", "name", "email", "designation", "role", "avatar_url")
 
 
 class SetPasswordSerializer(serializers.Serializer):

@@ -1,6 +1,8 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import {
   ChevronLeft,
+  Download,
+  FileText,
   ChevronRight,
   Handshake,
   Megaphone,
@@ -23,7 +25,8 @@ import { Card } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { fmtDate, fmtRelative } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import type { NewsCategory, NewsImage, NewsPost } from './api'
+import { fmtSize } from '@/lib/upload'
+import type { NewsAttachment, NewsCategory, NewsImage, NewsPost } from './api'
 
 export const CATEGORY_META: Record<NewsCategory, { icon: LucideIcon; tone: NonNullable<BadgeProps['tone']> }> = {
   news: { icon: Newspaper, tone: 'primary' },
@@ -80,6 +83,47 @@ export function PostBody({ text, clamp }: { text: string; clamp?: boolean }) {
         </button>
       )}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- documents
+
+export function Attachments({ files, className }: { files?: NewsAttachment[]; className?: string }) {
+  if (!files?.length) return null
+  return (
+    <ul className={cn('space-y-2', className)} aria-label="Attached documents">
+      {files.map((f) => {
+        const pdf = /\.pdf$/i.test(f.name)
+        return (
+          <li key={f.id}>
+            <a
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <span
+                className={cn(
+                  'flex size-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold',
+                  pdf ? 'bg-danger-soft text-danger-soft-foreground' : 'bg-info-soft text-info-soft-foreground',
+                )}
+                aria-hidden
+              >
+                {pdf ? 'PDF' : <FileText className="size-4" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium group-hover:text-primary">{f.name}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {pdf ? 'PDF' : 'Word document'} · {fmtSize(f.size)}
+                </span>
+              </span>
+              <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
@@ -219,7 +263,7 @@ interface PostActions {
 export function PostMeta({ post }: { post: NewsPost }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <Avatar name={post.author?.name ?? 'Admin'} seed={post.author?.id ?? 0} />
+      <Avatar name={post.author?.name ?? 'Admin'} seed={post.author?.id ?? 0} src={post.author?.avatar_url} />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{post.author?.name ?? 'Admin'}</p>
         <p className="truncate text-xs text-muted-foreground">
@@ -288,6 +332,7 @@ export function NewsPostCard({ post, actions, clamp = true }: { post: NewsPost; 
           <PostBody text={post.body} clamp={clamp} />
         </div>
         <PhotoGrid images={post.images} title={post.title} className="mt-3" />
+        <Attachments files={post.attachments} className="mt-3" />
       </article>
     </Card>
   )

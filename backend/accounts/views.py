@@ -137,6 +137,59 @@ class ChangePasswordView(APIView):
         return Response(_auth_payload(user, request))
 
 
+class AvatarUploadSerializer(serializers.Serializer):
+    avatar = serializers.FileField()  # checked by core.uploads.check_image (clear messages)
+
+    def validate_avatar(self, f):
+        from core.uploads import check_image
+
+        check_image(f, "Your photo")
+        return f
+
+
+class MyAvatarView(APIView):
+    """Your own profile photo: POST (multipart `avatar`) to set it, DELETE to go back to initials."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _payload(self, request):
+        user = type(request.user).objects.select_related("company", "manager", "office_location").get(pk=request.user.pk)
+        return MeSerializer(user, context={"request": request}).data
+
+    @extend_schema(request={"multipart/form-data": AvatarUploadSerializer}, responses=MeSerializer)
+    def post(self, request):
+        from django.db import transaction
+
+        from news.images import clean_avatar
+        from news.serializers import delete_files
+
+        s = AvatarUploadSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            photo = clean_avatar(s.validated_data["avatar"])
+        except Exception:  # noqa: BLE001 - unreadable image
+            raise serializers.ValidationError({"avatar": ["This file couldn't be read as an image."]})
+        user = type(request.user).objects.get(pk=request.user.pk)
+        old = user.avatar.name if user.avatar else None
+        user.avatar = photo
+        user.save(update_fields=["avatar", "updated_at"])
+        if old:
+            transaction.on_commit(lambda: delete_files([old]))
+        return Response(self._payload(request))
+
+    @extend_schema(responses=MeSerializer)
+    def delete(self, request):
+        from news.serializers import delete_files
+
+        user = type(request.user).objects.get(pk=request.user.pk)
+        if user.avatar:
+            name = user.avatar.name
+            user.avatar = None
+            user.save(update_fields=["avatar", "updated_at"])
+            delete_files([name])
+        return Response(self._payload(request))
+
+
 class MeView(RetrieveUpdateAPIView):
     serializer_class = MeSerializer
     permission_classes = [IsAuthenticated]

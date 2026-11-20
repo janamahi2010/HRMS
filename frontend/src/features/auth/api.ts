@@ -8,6 +8,12 @@ export const authApi = {
   logout: (refresh: string) => api.post('/auth/logout/', { refresh }),
   me: () => api.get<Me>('/auth/me/').then((r) => r.data),
   updateMe: (body: Partial<Pick<Me, 'name' | 'phone' | 'date_of_birth' | 'show_birthday'>>) => api.patch<Me>('/auth/me/', body).then((r) => r.data),
+  uploadAvatar: (file: File) => {
+    const fd = new FormData()
+    fd.append('avatar', file)
+    return api.post<Me>('/auth/me/avatar/', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
+  },
+  removeAvatar: () => api.delete<Me>('/auth/me/avatar/').then((r) => r.data),
   forgotPassword: (email: string) => api.post<{ detail: string }>('/auth/password/forgot/', { email }).then((r) => r.data),
   validateToken: (uid: string, token: string) =>
     api.post<{ email: string; name: string }>('/auth/password/validate/', { uid, token }).then((r) => r.data),

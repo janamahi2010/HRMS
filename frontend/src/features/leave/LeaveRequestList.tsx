@@ -86,7 +86,7 @@ export function LeaveRequestList({ scope, onApply, userId }: { scope: LeaveScope
             header: 'Employee',
             cell: (r: LeaveRequest) => (
               <div className="flex min-w-0 items-center gap-3">
-                <Avatar name={r.user.name} seed={r.user.id} size="sm" />
+                <Avatar name={r.user.name} seed={r.user.id} src={r.user.avatar_url} size="sm" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{r.user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{r.user.designation || r.user.email}</p>
@@ -162,7 +162,7 @@ export function LeaveRequestList({ scope, onApply, userId }: { scope: LeaveScope
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   {showUser ? (
-                    <Avatar name={r.user.name} seed={r.user.id} size="sm" />
+                    <Avatar name={r.user.name} seed={r.user.id} src={r.user.avatar_url} size="sm" />
                   ) : (
                     <span className="size-2.5 shrink-0 rounded-full" style={{ background: r.leave_type.color }} aria-hidden />
                   )}

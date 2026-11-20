@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ImagePlus, X } from 'lucide-react'
+import { FilePlus2, FileText, ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -13,11 +13,10 @@ import { Switch } from '@/components/ui/switch'
 import { todayIST } from '@/lib/date'
 import { applyFieldErrors, getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import { MAX_PHOTOS, NEWS_CATEGORIES, shrinkPhoto, useSaveNews, type NewsCategory, type NewsPost } from './api'
+import { checkDocument, DOCUMENT_ACCEPT, fmtSize, IMAGE_ACCEPT, isDocument, MAX_UPLOAD_MB, prepareImage } from '@/lib/upload'
+import { MAX_DOCS, MAX_PHOTOS, NEWS_CATEGORIES, useSaveNews, type NewsCategory, type NewsPost } from './api'
 
 const MAX_BODY = 5000
-const MAX_FILE = 10 * 1024 * 1024
-const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 const schema = z.object({
   title: z.string().trim().min(3, 'Add a title (at least 3 characters)').max(150),
@@ -43,6 +42,10 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
   const [removed, setRemoved] = useState<number[]>([])
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const docRef = useRef<HTMLInputElement>(null)
+  const [docs, setDocs] = useState<{ key: string; file: File }[]>([])
+  const [removedDocs, setRemovedDocs] = useState<number[]>([])
+  const [docError, setDocError] = useState<string | null>(null)
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -64,6 +67,9 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
     setAdded([])
     setRemoved([])
     setPhotoError(null)
+    setDocs([])
+    setRemovedDocs([])
+    setDocError(null)
   }, [open, post, reset])
 
   // Free preview URLs.
@@ -71,34 +77,50 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
 
   const existing = useMemo(() => (post?.images ?? []).filter((i) => !removed.includes(i.id)), [post, removed])
   const total = existing.length + added.length
+  const existingDocs = useMemo(() => (post?.attachments ?? []).filter((a) => !removedDocs.includes(a.id)), [post, removedDocs])
+  const docTotal = existingDocs.length + docs.length
 
-  const addFiles = (list: FileList | File[]) => {
-    setPhotoError(null)
+  const addDocs = (list: FileList | File[]) => {
+    setDocError(null)
     const files = Array.from(list)
+    const room = MAX_DOCS - docTotal
+    if (room <= 0) return setDocError(`A post can have at most ${MAX_DOCS} documents.`)
+    const good: { key: string; file: File }[] = []
+    for (const f of files.slice(0, room)) {
+      const err = checkDocument(f)
+      if (err) setDocError(err)
+      else good.push({ key: `${f.name}-${f.size}-${Math.random()}`, file: f })
+    }
+    if (files.length > room) setDocError(`Only ${MAX_DOCS} documents per post: the extra ones were skipped.`)
+    setDocs((d) => [...d, ...good])
+  }
+
+  const addFiles = async (list: FileList | File[]) => {
+    setPhotoError(null)
+    const all = Array.from(list)
+    // PDFs / Word files dropped on the photos area go to the documents list instead.
+    const docFiles = all.filter(isDocument)
+    if (docFiles.length) addDocs(docFiles)
+    const files = all.filter((f) => !isDocument(f))
+    if (!files.length) return
     const room = MAX_PHOTOS - total
     if (room <= 0) return setPhotoError(`A post can have at most ${MAX_PHOTOS} photos.`)
     const good: NewPhoto[] = []
     for (const f of files.slice(0, room)) {
-      if (!TYPES.includes(f.type)) {
-        setPhotoError(`${f.name}: use JPG, PNG or WebP photos.`)
-        continue
-      }
-      if (f.size > MAX_FILE) {
-        setPhotoError(`${f.name} is larger than 10 MB.`)
-        continue
-      }
-      good.push({ key: `${f.name}-${f.size}-${Math.random()}`, file: f, url: URL.createObjectURL(f) })
+      const r = await prepareImage(f, f.name) // shrinks big phone photos; refuses anything still over 3 MB
+      if ('error' in r) setPhotoError(r.error)
+      else good.push({ key: `${f.name}-${f.size}-${Math.random()}`, file: r.file, url: URL.createObjectURL(r.file) })
     }
     if (files.length > room) setPhotoError(`Only ${MAX_PHOTOS} photos per post: the extra ones were skipped.`)
     setAdded((a) => [...a, ...good])
   }
 
   const onSubmit = handleSubmit(async (v) => {
-    if (!v.body.trim() && total === 0) {
-      setError('body', { message: 'Add a description or at least one photo' })
+    if (!v.body.trim() && total === 0 && docTotal === 0) {
+      setError('body', { message: 'Add a description, a photo or a document' })
       return
     }
-    const files = await Promise.all(added.map((p) => shrinkPhoto(p.file)))
+    const files = added.map((p) => p.file)
     save.mutate(
       {
         id: post?.id,
@@ -111,6 +133,8 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
           email_everyone: !isEdit && v.email_everyone,
           new_images: files,
           remove_image_ids: removed,
+          new_files: docs.map((d) => d.file),
+          remove_file_ids: removedDocs,
         },
       },
       {
@@ -123,7 +147,8 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
         onError: (err) => {
           const fields = (err as { response?: { data?: { error?: { fields?: Record<string, string[]> } } } }).response?.data?.error?.fields
           if (fields?.new_images) setPhotoError(String(fields.new_images[0]))
-          if (!applyFieldErrors(err, setError) && !fields?.new_images) toast.error(getErrorMessage(err))
+          if (fields?.new_files) setDocError(String(fields.new_files[0]))
+          if (!applyFieldErrors(err, setError) && !fields?.new_images && !fields?.new_files) toast.error(getErrorMessage(err))
         },
       },
     )
@@ -242,13 +267,13 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={IMAGE_ACCEPT}
             multiple
             className="hidden"
             tabIndex={-1}
             aria-hidden
             onChange={(e) => {
-              if (e.target.files) addFiles(e.target.files)
+              if (e.target.files) void addFiles(Array.from(e.target.files))
               e.target.value = ''
             }}
           />
@@ -257,7 +282,50 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
               {photoError}
             </p>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Up to {MAX_PHOTOS} photos · JPG, PNG or WebP · drag and drop works too.</p>
+            <p className="text-[13px] text-muted-foreground">
+              Up to {MAX_PHOTOS} photos · JPG, PNG or WebP · max {MAX_UPLOAD_MB} MB each (big phone photos are shrunk automatically) · drag and drop works too.
+            </p>
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-2 sm:col-span-2">
+          <legend className="text-sm font-medium">
+            Documents <span className="font-normal text-muted-foreground">· {docTotal}/{MAX_DOCS} · optional</span>
+          </legend>
+          {docTotal > 0 && (
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {existingDocs.map((a) => (
+                <DocRow key={`e${a.id}`} name={a.name} size={a.size} onRemove={() => setRemovedDocs((r) => [...r, a.id])} />
+              ))}
+              {docs.map((d) => (
+                <DocRow key={d.key} name={d.file.name} size={d.file.size} isNew onRemove={() => setDocs((x) => x.filter((y) => y.key !== d.key))} />
+              ))}
+            </ul>
+          )}
+          {docTotal < MAX_DOCS && (
+            <Button type="button" variant="outline" size="sm" onClick={() => docRef.current?.click()}>
+              <FilePlus2 /> Attach PDF or Word file
+            </Button>
+          )}
+          <input
+            ref={docRef}
+            type="file"
+            accept={DOCUMENT_ACCEPT}
+            multiple
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              if (e.target.files) addDocs(Array.from(e.target.files))
+              e.target.value = ''
+            }}
+          />
+          {docError ? (
+            <p role="alert" className="text-[13px] text-destructive">
+              {docError}
+            </p>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">For example the signed MoU. PDF, DOC or DOCX · max {MAX_UPLOAD_MB} MB each.</p>
           )}
         </fieldset>
 
@@ -293,5 +361,23 @@ export function NewsFormDialog({ open, onOpenChange, post }: { open: boolean; on
         )}
       </form>
     </ResponsiveDialog>
+  )
+}
+
+function DocRow({ name, size, isNew, onRemove }: { name: string; size: number; isNew?: boolean; onRemove: () => void }) {
+  return (
+    <li className="flex items-center gap-3 px-3 py-2">
+      <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{name}</span>
+        <span className="block text-xs text-muted-foreground">
+          {fmtSize(size)}
+          {isNew ? ' · new' : ''}
+        </span>
+      </span>
+      <Button type="button" variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`Remove ${name}`}>
+        <X />
+      </Button>
+    </li>
   )
 }

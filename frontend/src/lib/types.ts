@@ -26,6 +26,8 @@ export interface UserMini {
   name: string
   email: string
   designation: string
+  /** Profile photo (null = show initials). */
+  avatar_url?: string | null
 }
 
 export interface IdName {
@@ -45,6 +47,7 @@ export interface Me {
   date_of_birth: string | null
   show_birthday: boolean
   remote_allowed?: boolean
+  avatar_url?: string | null
   internship: Internship | null
   /** An admin set the password: they must choose their own before using the app. */
   must_change_password: boolean
@@ -60,6 +63,7 @@ export interface UserLite {
   email: string
   designation: string
   role: Role
+  avatar_url?: string | null
 }
 
 export interface Employee {
@@ -83,6 +87,7 @@ export interface Employee {
   password_change_pending?: boolean
   /** Can check in from anywhere. */
   remote_allowed?: boolean
+  avatar_url?: string | null
   invite_pending: boolean
   direct_reports: number
   last_login: string | null

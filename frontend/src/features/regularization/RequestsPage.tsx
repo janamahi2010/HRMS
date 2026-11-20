@@ -151,7 +151,7 @@ export function RequestList({ scope, onNew, userId }: { scope: RegScope; onNew?:
             header: 'Employee',
             cell: (r: Regularization) => (
               <div className="flex min-w-0 items-center gap-3">
-                <Avatar name={r.user.name} seed={r.user.id} size="sm" />
+                <Avatar name={r.user.name} seed={r.user.id} src={r.user.avatar_url} size="sm" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{r.user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{r.user.designation || r.user.email}</p>
@@ -233,7 +233,7 @@ export function RequestList({ scope, onNew, userId }: { scope: RegScope; onNew?:
             <div className="space-y-3 p-4" onClick={() => setDetail(r)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  {showUser && <Avatar name={r.user.name} seed={r.user.id} size="sm" />}
+                  {showUser && <Avatar name={r.user.name} seed={r.user.id} src={r.user.avatar_url} size="sm" />}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{showUser ? r.user.name : day(r.date)}</p>
                     <p className="truncate text-xs text-muted-foreground">

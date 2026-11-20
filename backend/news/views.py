@@ -34,7 +34,11 @@ class NewsPostViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        qs = NewsPost.objects.filter(company_id=self.request.user.company_id).select_related("author").prefetch_related("images")
+        qs = (
+            NewsPost.objects.filter(company_id=self.request.user.company_id)
+            .select_related("author")
+            .prefetch_related("images", "attachments")
+        )
         cat = self.request.query_params.get("category")
         if cat in NewsPost.Category.values:
             qs = qs.filter(category=cat)
@@ -66,7 +70,7 @@ class NewsPostViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance):
-        names = [img.image.name for img in instance.images.all()]
+        names = [img.image.name for img in instance.images.all()] + [a.file.name for a in instance.attachments.all()]
         instance.delete()
         transaction.on_commit(lambda: delete_files(names))
 

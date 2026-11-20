@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Briefcase, Building2, CalendarDays, IdCard, Mail, UserRound } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Briefcase, Building2, CalendarDays, Camera, IdCard, Mail, Trash2, UserRound } from 'lucide-react'
+import { useRef, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { ThemeSegmented } from '@/app/layout/ThemeToggle'
 import { fmtDate, todayIST } from '@/lib/date'
 import { applyFieldErrors, getErrorMessage } from '@/lib/errors'
+import { IMAGE_ACCEPT, MAX_UPLOAD_MB, prepareImage } from '@/lib/upload'
 import { authApi, meQueryKey } from './api'
 import { useAuth, useUser } from './AuthProvider'
 import { InternshipCard } from '@/features/employees/Internship'
@@ -40,7 +41,7 @@ export default function ProfilePage() {
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <Card className="lg:col-span-1">
           <CardContent className="flex flex-col items-center text-center">
-            <Avatar name={user.name} seed={user.id} size="xl" />
+            <ProfilePhoto />
             <h2 className="mt-4 text-lg font-semibold">{user.name}</h2>
             <p className="text-sm text-muted-foreground">{user.designation || 'No designation set'}</p>
             <StatusBadge status={user.role} dot={false} className="mt-2" />
@@ -191,5 +192,75 @@ function PasswordForm() {
         </form>
       </CardContent>
     </Card>
+  )
+}
+
+/** Your own profile photo: shown next to your name everywhere (lists, requests, news, the header). */
+function ProfilePhoto() {
+  const user = useUser()
+  const qc = useQueryClient()
+  const input = useRef<HTMLInputElement>(null)
+  const onDone = (me: Awaited<ReturnType<typeof authApi.uploadAvatar>>) => {
+    qc.setQueryData(meQueryKey, me)
+    qc.invalidateQueries({ queryKey: ['employees'] })
+  }
+  const upload = useMutation({ mutationFn: authApi.uploadAvatar, onSuccess: onDone })
+  const remove = useMutation({ mutationFn: authApi.removeAvatar, onSuccess: onDone })
+
+  const onPick = async (file?: File) => {
+    if (!file) return
+    const r = await prepareImage(file, 'Your photo', 1200)
+    if ('error' in r) return toast.error(r.error)
+    upload.mutate(r.file, {
+      onSuccess: () => toast.success('Profile photo updated'),
+      onError: (err) => toast.error(getErrorMessage(err)),
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        disabled={upload.isPending}
+        className="group relative rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        aria-label={user.avatar_url ? 'Change profile photo' : 'Add a profile photo'}
+      >
+        <Avatar name={user.name} seed={user.id} src={user.avatar_url} size="xl" className="size-24 text-2xl" />
+        <span className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
+          <Camera className="size-4" aria-hidden />
+        </span>
+        {upload.isPending && <span className="absolute inset-0 animate-pulse rounded-full bg-background/60" aria-hidden />}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => {
+          void onPick(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      <div className="mt-2 flex items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={() => input.current?.click()} loading={upload.isPending}>
+          {upload.isPending ? 'Uploading…' : user.avatar_url ? 'Change photo' : 'Add photo'}
+        </Button>
+        {user.avatar_url && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            loading={remove.isPending}
+            onClick={() => remove.mutate(undefined, { onSuccess: () => toast.success('Photo removed'), onError: (e) => toast.error(getErrorMessage(e)) })}
+          >
+            {!remove.isPending && <Trash2 />} Remove
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">JPG, PNG or WebP · max {MAX_UPLOAD_MB} MB</p>
+    </div>
   )
 }

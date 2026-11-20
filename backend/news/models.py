@@ -30,6 +30,19 @@ class NewsPost(TimeStampedModel):
         return self.title
 
 
+class NewsAttachment(TimeStampedModel):
+    """A PDF / Word document attached to a post (e.g. the signed MoU). Max 3 MB each."""
+
+    post = models.ForeignKey(NewsPost, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="news/files/%Y/%m/", max_length=255)
+    name = models.CharField(max_length=150)  # original file name, shown to people
+    size = models.PositiveIntegerField(default=0)
+    content_type = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+
 class NewsImage(TimeStampedModel):
     post = models.ForeignKey(NewsPost, on_delete=models.CASCADE, related_name="images")
     image = models.ImageField(upload_to="news/%Y/%m/")

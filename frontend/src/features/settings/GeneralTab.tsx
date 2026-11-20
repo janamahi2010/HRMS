@@ -12,11 +12,11 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton'
 import { applyFieldErrors, getErrorMessage } from '@/lib/errors'
+import { prepareImage } from '@/lib/upload'
 import { BirthdayPosterCard } from './BirthdayPosterCard'
 import { useCompany, useRemoveLogo, useUpdateCompany, useUploadLogo } from './api'
 
 const schema = z.object({ name: z.string().trim().min(2, 'Company name is required').max(150) })
-const MAX_BYTES = 2 * 1024 * 1024
 
 export function GeneralTab() {
   const company = useCompany()
@@ -42,11 +42,11 @@ export function GeneralTab() {
   }
   if (company.isError) return <Card><ErrorState error={company.error} onRetry={() => company.refetch()} /></Card>
 
-  const onFile = (file?: File) => {
-    if (!file) return
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return toast.error('Use a PNG, JPG or WebP image.')
-    if (file.size > MAX_BYTES) return toast.error('Logo must be 2 MB or smaller.')
-    upload.mutate(file, {
+  const onFile = async (picked?: File) => {
+    if (!picked) return
+    const r = await prepareImage(picked, 'The logo', 1200)
+    if ('error' in r) return toast.error(r.error)
+    upload.mutate(r.file, {
       onSuccess: () => toast.success('Logo updated'),
       onError: (err) => toast.error(getErrorMessage(err)),
     })
@@ -101,7 +101,7 @@ export function GeneralTab() {
               </Button>
             )}
           </div>
-          <p className="w-full text-[13px] text-muted-foreground">Square PNG, JPG or WebP, up to 2 MB.</p>
+          <p className="w-full text-[13px] text-muted-foreground">Square PNG, JPG or WebP, up to 3 MB.</p>
         </div>
 
         <form

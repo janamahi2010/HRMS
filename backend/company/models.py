@@ -44,6 +44,12 @@ class CompanySettings(TimeStampedModel):
     work_summary_required = models.BooleanField(
         default=False, help_text="Employees must describe their day's work before they can check out."
     )
+    attendance_start = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Days before this are never counted as Absent (the team didn't use HRMS yet). "
+        "Joining dates stay as they are.",
+    )
     default_cc = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,

@@ -433,12 +433,20 @@ def save_work_summary(user, d: date, text: str) -> Attendance:
     return row
 
 
+def tracked_from(joined: date | None, cfg: CompanySettings) -> date | None:
+    """First day attendance counts for someone: their joining date or the company's HRMS start, whichever is later."""
+    start = cfg.attendance_start
+    if joined and start:
+        return max(joined, start)
+    return joined or start
+
+
 def resolve_day(d: date, today: date, kind: str, row: Attendance | None, leave, joined: date | None, holiday: str | None):
     """Status for one calendar cell. Stored rows win; otherwise derive."""
     if row is not None:
         return row.status
     if joined and d < joined:
-        return None  # before joining: blank
+        return None  # before joining (or before the company started tracking): blank
     if kind == "holiday":
         return AttendanceStatus.HOLIDAY
     if kind == "weekly_off":
@@ -473,7 +481,7 @@ def month_calendar(user, year: int, month: int) -> dict:
     while d <= end:
         kind = cal.day_kind(d)
         row, leave = rows.get(d), leaves.get(d)
-        status = resolve_day(d, today, kind, row, leave, user.joining_date, cal.holidays.get(d))
+        status = resolve_day(d, today, kind, row, leave, tracked_from(user.joining_date, cfg), cal.holidays.get(d))
         if status in summary:
             summary[status] += 1
         if row:
@@ -536,7 +544,7 @@ def team_day(viewer, d: date, users) -> list[dict]:
                     "designation": u.designation,
                     "office": u.office_location.name if u.office_location else None,
                 },
-                "status": resolve_day(d, today, kind, row, leave, u.joining_date, cal.holidays.get(d)),
+                "status": resolve_day(d, today, kind, row, leave, tracked_from(u.joining_date, cal.settings), cal.holidays.get(d)),
                 "leave": _leave_payload(leave),
                 "record": serialize_record(row) if row else None,
             }
@@ -574,7 +582,7 @@ def close_day(d: date, company_id: int | None = None) -> dict:
             status=AttendanceStatus.INCOMPLETE, remarks="No check-out recorded", updated_at=timezone.now()
         )
 
-        if not cal.is_working(d):
+        if not cal.is_working(d) or (cfg.attendance_start and d < cfg.attendance_start):
             counts["skipped_companies"] += 1
             continue
 

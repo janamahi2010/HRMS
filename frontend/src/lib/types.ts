@@ -141,6 +141,8 @@ export interface CompanySettings {
   half_day_hours: string
   weekly_offs: number[]
   work_summary_required: boolean
+  /** Days before this are never Absent (YYYY-MM-DD, null = count from joining date). */
+  attendance_start: string | null
   default_cc: number[]
   default_cc_users: UserMini[]
   /** Stands in when someone's reporting manager is on leave. */

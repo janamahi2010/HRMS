@@ -60,6 +60,12 @@ def validate_request(user, data: dict, cfg=None) -> None:
         )
     if user.joining_date and d < user.joining_date:
         raise ServiceError("That date is before your joining date.", code="before_joining", extra={"field": "date"})
+    if cfg.attendance_start and d < cfg.attendance_start:
+        raise ServiceError(
+            f"Attendance is tracked from {cfg.attendance_start:%d %b %Y}, so earlier days can't be corrected.",
+            code="before_tracking",
+            extra={"field": "date"},
+        )
     if data["check_out_time"] <= data["check_in_time"]:
         raise ServiceError(
             "Check-out must be after check-in.", code="invalid_times", extra={"field": "check_out_time"}

@@ -77,6 +77,7 @@ class CompanySettingsSerializer(serializers.ModelSerializer):
             "half_day_hours",
             "weekly_offs",
             "work_summary_required",
+            "attendance_start",
             "default_cc",
             "default_cc_users",
             "backup_approver",

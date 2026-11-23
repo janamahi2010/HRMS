@@ -27,6 +27,7 @@ const schema = z
     half_day_hours: z.coerce.number<number>().min(0.5, 'At least 0.5 hours').max(24),
     weekly_offs: z.array(z.number()).max(6, 'At least one working day is required'),
     work_summary_required: z.boolean(),
+    attendance_start: z.string(),
     default_cc: z.array(z.custom<PickedUser>()),
     backup_approver: z.custom<PickedUser | null>(),
   })
@@ -44,6 +45,7 @@ const toValues = (s: CompanySettings): Values => ({
   half_day_hours: Number(s.half_day_hours),
   weekly_offs: s.weekly_offs,
   work_summary_required: s.work_summary_required,
+  attendance_start: s.attendance_start ?? '',
   default_cc: s.default_cc_users.map((u) => ({ id: u.id, name: u.name, email: u.email, designation: u.designation })),
   backup_approver: s.backup_approver_user
     ? { id: s.backup_approver_user.id, name: s.backup_approver_user.name, email: s.backup_approver_user.email, designation: s.backup_approver_user.designation }
@@ -83,6 +85,7 @@ function WorkRulesForm({ settings }: { settings: CompanySettings }) {
       {
         ...v,
         half_day_hours: String(v.half_day_hours),
+        attendance_start: v.attendance_start || null,
         default_cc: v.default_cc.map((u) => u.id),
         backup_approver: v.backup_approver?.id ?? null,
       },
@@ -160,6 +163,27 @@ function WorkRulesForm({ settings }: { settings: CompanySettings }) {
               {formState.errors.weekly_offs.message}
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Attendance tracking start</CardTitle>
+            <CardDescription>
+              The day your team started using HRMS. Earlier days are left blank instead of being marked Absent. Joining dates
+              are not changed.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FormField
+            label="Track attendance from"
+            error={formState.errors.attendance_start?.message}
+            hint="Leave empty to count from each person's joining date."
+          >
+            <Input type="date" {...register('attendance_start')} />
+          </FormField>
         </CardContent>
       </Card>
 

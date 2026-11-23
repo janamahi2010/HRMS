@@ -13,7 +13,7 @@ from accounts.models import User
 from attendance.missed import team_forgot
 from attendance.missed import unresolved as unresolved_checkouts
 from attendance.models import Attendance
-from attendance.services import resolve_day, today_ist, today_state
+from attendance.services import resolve_day, today_ist, today_state, tracked_from
 from company.models import Holiday
 from company.services import WorkCalendar
 from core.approvals import decidable_q
@@ -56,7 +56,9 @@ def resolve_range(users: list, company_id: int, start: date, end: date):
     for u in users:
         for d in days:
             row = rows.get((u.id, d))
-            status = resolve_day(d, today, cal.day_kind(d), row, leaves.get((u.id, d)), u.joining_date, cal.holidays.get(d))
+            status = resolve_day(
+                d, today, cal.day_kind(d), row, leaves.get((u.id, d)), tracked_from(u.joining_date, cal.settings), cal.holidays.get(d)
+            )
             yield u, d, status, row, leaves.get((u.id, d))
 
 

@@ -1,4 +1,5 @@
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q, Value
+from django.db.models.functions import NullIf
 from django_filters import rest_framework as df
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, mixins, viewsets
@@ -13,6 +14,24 @@ from core.permissions import IsAdmin
 from . import services
 from .employee_serializers import EmployeeSerializer, SetPasswordSerializer, UserLookupSerializer
 from .models import User
+
+
+class EmployeeOrdering(filters.OrderingFilter):
+    """Sort by any column (?ordering=-joining_date). Empty values ("—") always go last, and ties are broken
+    by name so the order is stable across pages."""
+
+    BLANKABLE = {"designation", "employee_code"}
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+        if not ordering:
+            return queryset
+        exprs = []
+        for term in ordering:
+            desc, field = term.startswith("-"), term.lstrip("-")
+            expr = NullIf(F(field), Value("")) if field in self.BLANKABLE else F(field)
+            exprs.append(expr.desc(nulls_last=True) if desc else expr.asc(nulls_last=True))
+        return queryset.order_by(*exprs, "name", "id")
 
 
 class EmployeeFilter(df.FilterSet):
@@ -39,10 +58,20 @@ class EmployeeViewSet(
 
     serializer_class = EmployeeSerializer
     permission_classes = [IsAdmin]
-    filter_backends = [df.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [df.DjangoFilterBackend, filters.SearchFilter, EmployeeOrdering]
     filterset_class = EmployeeFilter
     search_fields = ("name", "email", "designation", "phone", "employee_code")
-    ordering_fields = ("name", "joining_date", "created_at", "role")
+    ordering_fields = (
+        "name",
+        "employee_code",
+        "designation",
+        "role",
+        "manager__name",
+        "office_location__name",
+        "joining_date",
+        "is_active",
+        "created_at",
+    )
     ordering = ("name",)
     http_method_names = ["get", "post", "patch"]
 

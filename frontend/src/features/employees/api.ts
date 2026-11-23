@@ -8,7 +8,28 @@ export interface EmployeeFilters {
   search: string
   role: Role | 'all'
   status: 'active' | 'inactive' | 'all'
+  /** Column key, "-" prefix = descending; '' = default (name A-Z). */
+  sort: string
   page: number
+}
+
+/** Table column -> API ordering field (ascending). */
+const ORDERING: Record<string, string> = {
+  name: 'name',
+  designation: 'designation',
+  role: 'role',
+  manager: 'manager__name',
+  location: 'office_location__name',
+  joined: 'joining_date',
+  status: '-is_active', // ascending = Active first
+}
+
+function toOrdering(sort: string): string | undefined {
+  const desc = sort.startsWith('-')
+  const field = ORDERING[sort.replace(/^-/, '')]
+  if (!field) return undefined
+  if (!desc) return field
+  return field.startsWith('-') ? field.slice(1) : `-${field}`
 }
 
 export const employeeKeys = {
@@ -26,6 +47,7 @@ export function useEmployees(f: EmployeeFilters) {
             search: f.search || undefined,
             role: f.role === 'all' ? undefined : f.role,
             status: f.status === 'all' ? undefined : f.status,
+            ordering: toOrdering(f.sort),
             page: f.page,
           },
           signal,

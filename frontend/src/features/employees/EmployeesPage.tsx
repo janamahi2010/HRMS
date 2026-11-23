@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { prefetchPerson } from './profileApi'
-import { DataTable, type Column } from '@/components/DataTable'
+import { DataTable, type Column, type SortState } from '@/components/DataTable'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { PageHeader } from '@/components/PageHeader'
@@ -31,7 +31,20 @@ import { EmployeeFormDialog } from './EmployeeFormDialog'
 import { InternshipBadge } from './Internship'
 import { SetPasswordDialog } from './AdminPassword'
 
-const INITIAL: EmployeeFilters = { search: '', role: 'all', status: 'active', page: 1 }
+const INITIAL: EmployeeFilters = { search: '', role: 'all', status: 'active', sort: '', page: 1 }
+
+/** Phone "Sort by" menu (the table headers do this on wider screens). */
+const SORT_OPTIONS = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: '-name', label: 'Name (Z–A)' },
+  { value: 'designation', label: 'Designation' },
+  { value: 'role', label: 'Role' },
+  { value: 'manager', label: 'Reports to' },
+  { value: 'location', label: 'Office' },
+  { value: '-joined', label: 'Joined (newest)' },
+  { value: 'joined', label: 'Joined (oldest)' },
+  { value: 'status', label: 'Status' },
+]
 
 export default function EmployeesPage() {
   const me = useUser()
@@ -41,6 +54,7 @@ export default function EmployeesPage() {
     search: params.get('q') ?? INITIAL.search,
     role: (params.get('role') as EmployeeFilters['role']) ?? INITIAL.role,
     status: (params.get('status') as EmployeeFilters['status']) ?? INITIAL.status,
+    sort: params.get('sort') ?? INITIAL.sort,
     page: Number(params.get('page')) || INITIAL.page,
   }
   const setFilters = (next: EmployeeFilters | ((f: EmployeeFilters) => EmployeeFilters)) => {
@@ -49,6 +63,7 @@ export default function EmployeesPage() {
     if (f.search) p.set('q', f.search)
     if (f.role !== INITIAL.role) p.set('role', f.role)
     if (f.status !== INITIAL.status) p.set('status', f.status)
+    if (f.sort) p.set('sort', f.sort)
     if (f.page !== 1) p.set('page', String(f.page))
     setParams(p, { replace: true })
   }
@@ -73,6 +88,15 @@ export default function EmployeesPage() {
   const openEdit = (e: Employee) => {
     setEditing(e)
     setFormOpen(true)
+  }
+  // Default order is name A-Z, so show that arrow when nothing is picked.
+  const sort: SortState = filters.sort
+    ? { key: filters.sort.replace(/^-/, ''), desc: filters.sort.startsWith('-') }
+    : { key: 'name', desc: false }
+  // Click a header: A-Z, then Z-A, then back to the default (name A-Z).
+  const onSort = (key: string) => {
+    const next = sort.key !== key ? key : !sort.desc ? `-${key}` : ''
+    update({ sort: next === 'name' ? '' : next })
   }
   const isFiltered = filters.search !== '' || filters.role !== 'all' || filters.status !== 'active'
 
@@ -131,6 +155,7 @@ export default function EmployeesPage() {
     {
       key: 'name',
       header: 'Employee',
+      sortable: true,
       skeletonWidth: 'w-40',
       cell: (e) => (
         <div className="flex min-w-0 items-center gap-3">
@@ -151,11 +176,13 @@ export default function EmployeesPage() {
     {
       key: 'designation',
       header: 'Designation',
+      sortable: true,
       cell: (e) => <span className="text-muted-foreground">{e.designation || '—'}</span>,
     },
     {
       key: 'role',
       header: 'Role',
+      sortable: true,
       skeletonWidth: 'w-16',
       cell: (e) => (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -169,19 +196,22 @@ export default function EmployeesPage() {
     {
       key: 'manager',
       header: 'Reports to',
+      sortable: true,
       cell: (e) => <span className="text-muted-foreground">{e.manager?.name ?? '—'}</span>,
     },
     {
       key: 'location',
       header: 'Office',
+      sortable: true,
       cell: (e) => <span className="text-muted-foreground">{e.office_location?.name ?? '—'}</span>,
     },
     {
       key: 'joined',
       header: 'Joined',
+      sortable: true,
       cell: (e) => <span className="tabular text-muted-foreground">{e.joining_date ? fmtDate(e.joining_date) : '—'}</span>,
     },
-    { key: 'status', header: 'Status', skeletonWidth: 'w-16', cell: statusBadge },
+    { key: 'status', header: 'Status', sortable: true, skeletonWidth: 'w-16', cell: statusBadge },
     { key: 'actions', header: <span className="sr-only">Actions</span>, className: 'w-12 text-right', cell: actions },
   ]
 
@@ -226,6 +256,18 @@ export default function EmployeesPage() {
               <SelectItem value="all">All statuses</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filters.sort || 'name'} onValueChange={(v) => update({ sort: v === 'name' ? '' : v })}>
+            <SelectTrigger className="col-span-2 md:hidden" aria-label="Sort by">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  Sort: {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -244,6 +286,8 @@ export default function EmployeesPage() {
             fetching={query.isPlaceholderData}
             onRowClick={openProfile}
             onRowIntent={warm}
+            sort={sort}
+            onSort={onSort}
             mobileCard={(e) => (
               <Card className="flex items-center gap-3 p-4" onClick={() => openProfile(e)} onPointerEnter={() => warm(e)}>
                 <Avatar name={e.name} seed={e.id} src={e.avatar_url} size="lg" />

@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import type { Key, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Card } from './ui/card'
@@ -11,6 +12,13 @@ export interface Column<T> {
   headerClassName?: string
   /** Skeleton bar width for this column */
   skeletonWidth?: string
+  /** Header can be clicked to sort by this column (needs `sort` + `onSort` on the table). */
+  sortable?: boolean
+}
+
+export interface SortState {
+  key: string
+  desc: boolean
 }
 
 interface DataTableProps<T> {
@@ -28,6 +36,9 @@ interface DataTableProps<T> {
   /** Dim rows while a background refetch / page change is in flight. */
   fetching?: boolean
   caption?: string
+  /** Current sort (null = the list's default order). */
+  sort?: SortState | null
+  onSort?: (key: string) => void
 }
 
 export function DataTable<T>({
@@ -42,6 +53,8 @@ export function DataTable<T>({
   onRowIntent,
   fetching,
   caption,
+  sort,
+  onSort,
 }: DataTableProps<T>) {
   if (isLoading) return <DataTableSkeleton columns={columns} rows={skeletonRows} />
   if (!rows || rows.length === 0) return <Card>{empty}</Card>
@@ -55,15 +68,38 @@ export function DataTable<T>({
             {caption && <caption className="sr-only">{caption}</caption>}
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                {columns.map((c) => (
-                  <th
-                    key={c.key}
-                    scope="col"
-                    className={cn('h-11 px-4 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground', c.headerClassName)}
-                  >
-                    {c.header}
-                  </th>
-                ))}
+                {columns.map((c) => {
+                  const active = !!(c.sortable && onSort && sort?.key === c.key)
+                  const Icon = !active ? ChevronsUpDown : sort!.desc ? ArrowDown : ArrowUp
+                  return (
+                    <th
+                      key={c.key}
+                      scope="col"
+                      aria-sort={active ? (sort!.desc ? 'descending' : 'ascending') : undefined}
+                      className={cn(
+                        'h-11 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground',
+                        c.sortable && onSort ? 'px-2' : 'px-4',
+                        c.headerClassName,
+                      )}
+                    >
+                      {c.sortable && onSort ? (
+                        <button
+                          type="button"
+                          onClick={() => onSort(c.key)}
+                          className={cn(
+                            'inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 uppercase tracking-wide transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+                            active && 'text-foreground',
+                          )}
+                        >
+                          {c.header}
+                          <Icon className={cn('size-3.5 shrink-0', !active && 'opacity-40')} aria-hidden />
+                        </button>
+                      ) : (
+                        c.header
+                      )}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
